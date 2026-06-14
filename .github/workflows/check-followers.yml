@@ -2,14 +2,16 @@ name: Check Follow-Back Status
 
 on:
   schedule:
-    - cron: '0 10 * * *'
+    - cron: '0 9 * * *'
   workflow_dispatch:
 
 jobs:
   check-followers:
     runs-on: ubuntu-latest
+    
     permissions:
       contents: read
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -26,14 +28,16 @@ jobs:
       - name: Run follow-back checker
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: python follow_back_checker.py > follow_check_result.txt 2>&1
+        run: |
+          python follow_back_checker.py > follow_check_result.txt 2>&1 || true
+          cat follow_check_result.txt
       
       - name: Upload results
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: follow-check-results
           path: follow_check_result.txt
-          retention-days: 30
-      
+          retention-days: 30      
       - name: Display results
         run: cat follow_check_result.txt

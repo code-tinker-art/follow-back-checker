@@ -38,6 +38,38 @@ jobs:
         with:
           name: follow-check-results
           path: follow_check_result.txt
-          retention-days: 30      
-      - name: Display results
-        run: cat follow_check_result.txt
+          retention-days: 30
+
+  cleanup-old-runs:
+    needs: check-followers
+    runs-on: ubuntu-latest
+    if: always()
+    
+    permissions:
+      actions: write
+    
+    steps:
+      - name: Delete old workflow runs
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const runs = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: context.workflow_id,
+              per_page: 100,
+              status: 'completed'
+            });
+            
+            // Keep only the latest 5 runs
+            const runsToDelete = runs.data.workflow_runs.slice(5);
+            
+            for (const run of runsToDelete) {
+              console.log(`Deleting run #${run.id}`);
+              await github.rest.actions.deleteWorkflowRun({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                run_id: run.id
+              });
+            }

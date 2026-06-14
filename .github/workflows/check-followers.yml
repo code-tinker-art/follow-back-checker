@@ -1,0 +1,39 @@
+name: Check Follow-Back Status
+
+on:
+  schedule:
+    - cron: '0 9 * * *'
+  workflow_dispatch:
+
+jobs:
+  check-followers:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      
+      - name: Run follow-back checker
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python follow_back_checker.py > follow_check_result.txt 2>&1
+      
+      - name: Upload results
+        uses: actions/upload-artifact@v3
+        with:
+          name: follow-check-results
+          path: follow_check_result.txt
+          retention-days: 30
+      
+      - name: Display results
+        run: cat follow_check_result.txt

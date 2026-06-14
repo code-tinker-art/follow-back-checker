@@ -27,7 +27,7 @@ jobs:
       
       - name: Run follow-back checker
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           python follow_back_checker.py > follow_check_result.txt 2>&1 || true
           cat follow_check_result.txt

@@ -38,4 +38,4 @@ jobs:
         with:
           name: follow-check-results-${{ github.run_number }}
           path: follow_check_result.txt
-          retention-days: 7
+          retention-days: 1

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-GitHub Follow-Back Checker
-Finds users you follow who haven't followed you back.
+GitHub Follow-Back Checker with Auto-Unfollow
+Finds users you follow who haven't followed you back and optionally unfollows them.
 """
 
 import os
@@ -11,7 +11,7 @@ from typing import Set, Tuple
 
 
 class GitHubFollowChecker:
-    """Check GitHub followers vs following."""
+    """Check GitHub followers vs following and optionally auto-unfollow."""
     
     def __init__(self, token: str):
         """
@@ -64,6 +64,26 @@ class GitHubFollowChecker:
         
         return users
     
+    def unfollow_user(self, username: str) -> bool:
+        """
+        Unfollow a user.
+        
+        Args:
+            username: GitHub username to unfollow
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        url = f"{self.base_url}/user/following/{username}"
+        
+        try:
+            response = requests.delete(url, headers=self.headers)
+            response.raise_for_status()
+            return True
+        except requests.exceptions.RequestException as e:
+            print(f"Error unfollowing {username}: {e}")
+            return False
+    
     def get_non_mutual_follows(self) -> Tuple[Set[str], Set[str], Set[str]]:
         """
         Get users you follow who don't follow you back.
@@ -82,7 +102,32 @@ class GitHubFollowChecker:
         
         return non_mutual, followers, following
     
-    def display_results(self, non_mutual: Set[str], followers: Set[str], following: Set[str]):
+    def auto_unfollow(self, non_mutual: Set[str]) -> Tuple[int, int]:
+        """
+        Automatically unfollow users who don't follow you back.
+        
+        Args:
+            non_mutual: Set of usernames to unfollow
+            
+        Returns:
+            Tuple of (successful_unfollows, failed_unfollows)
+        """
+        successful = 0
+        failed = 0
+        
+        print(f"\n🔄 Starting auto-unfollow for {len(non_mutual)} users...")
+        
+        for i, username in enumerate(sorted(non_mutual), 1):
+            if self.unfollow_user(username):
+                successful += 1
+                print(f"  ✓ [{i}/{len(non_mutual)}] Unfollowed: {username}")
+            else:
+                failed += 1
+                print(f"  ✗ [{i}/{len(non_mutual)}] Failed to unfollow: {username}")
+        
+        return successful, failed
+    
+    def display_results(self, non_mutual: Set[str], followers: Set[str], following: Set[str], auto_unfollow_mode: bool = False):
         """
         Display the results in a formatted way.
         
@@ -90,44 +135,57 @@ class GitHubFollowChecker:
             non_mutual: Users you follow who don't follow back
             followers: Your followers
             following: Users you're following
+            auto_unfollow_mode: Whether auto-unfollow is enabled
         """
-        print("\n" + "=" * 50)
+        print("\n" + "=" * 60)
         print("GitHub Follow-Back Checker")
-        print("=" * 50)
+        print("=" * 60)
         print(f"\nTotal Followers: {len(followers)}")
         print(f"Total Following: {len(following)}")
         print(f"Mutual Follows: {len(followers & following)}")
         
         if non_mutual:
             print(f"\nUsers you follow who don't follow you back ({len(non_mutual)}):")
-            print("-" * 50)
-            for user in sorted(non_mutual):
-                print(f"  • {user}")
+            print("-" * 60)
+            
+            if auto_unfollow_mode:
+                print("⚠️  AUTO-UNFOLLOW MODE ENABLED")
+                print("These users will be unfollowed automatically...\n")
+                successful, failed = self.auto_unfollow(non_mutual)
+                print(f"\n✅ Successfully unfollowed: {successful}")
+                print(f"❌ Failed to unfollow: {failed}")
+            else:
+                for user in sorted(non_mutual):
+                    print(f"  • {user}")
+                print("\n💡 To auto-unfollow these users, set AUTO_UNFOLLOW=true")
         else:
             print("\n✅ Great! Everyone you follow also follows you back!")
         
-        print("\n" + "=" * 50)
+        print("\n" + "=" * 60)
 
 
 def main():
     """Main entry point."""
     # Get token from environment variable
-    token = os.getenv("GITHUB_TOKEN")
+    token = os.getenv("GITHUB_TOKEN") or os.getenv("PAT_TOKEN")
     
     if not token:
-        print("Error: GITHUB_TOKEN environment variable not set!")
+        print("Error: GITHUB_TOKEN or PAT_TOKEN environment variable not set!")
         print("\nPlease set your token:")
         print("  export GITHUB_TOKEN='your_token_here'")
-        print("\nOr create a .env file with:")
-        print("  GITHUB_TOKEN=your_token_here")
+        print("  or")
+        print("  export PAT_TOKEN='your_token_here'")
         sys.exit(1)
+    
+    # Check if auto-unfollow is enabled
+    auto_unfollow_mode = os.getenv("AUTO_UNFOLLOW", "false").lower() == "true"
     
     # Create checker and run
     checker = GitHubFollowChecker(token)
     
     try:
         non_mutual, followers, following = checker.get_non_mutual_follows()
-        checker.display_results(non_mutual, followers, following)
+        checker.display_results(non_mutual, followers, following, auto_unfollow_mode)
     except Exception as e:
         print(f"Error: {e}")
         sys.exit(1)

@@ -25,9 +25,10 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
       
-      - name: Run follow-back checker
+      - name: Run follow-back checker with auto-unfollow
         env:
           GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
+          AUTO_UNFOLLOW: true
         run: |
           python follow_back_checker.py > follow_check_result.txt 2>&1 || true
           cat follow_check_result.txt
@@ -38,4 +39,4 @@ jobs:
         with:
           name: follow-check-results-${{ github.run_number }}
           path: follow_check_result.txt
-          retention-days: 1
+          retention-days: 7
